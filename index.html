@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Keluar Masuk Barang</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
         * {
@@ -477,6 +478,40 @@
         .template-download a:hover {
             text-decoration: underline;
         }
+
+        .config-panel {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+
+        .config-panel h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .config-input {
+            margin-bottom: 10px;
+        }
+
+        .config-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .config-input input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .save-config {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
     </style>
 </head>
 <body>
@@ -485,6 +520,21 @@
             <h1><i class="fas fa-warehouse"></i> Sistem Keluar Masuk Barang</h1>
             <p class="description">Kelola stok barang dengan mudah dan efisien property of Ahmad Nawawi</p>
         </header>
+
+        <div class="config-panel">
+            <h3><i class="fas fa-cog"></i> Konfigurasi Supabase</h3>
+            <div class="config-input">
+                <label for="supabase-url">Supabase URL</label>
+                <input type="text" id="supabase-url" placeholder="https://your-project.supabase.co">
+            </div>
+            <div class="config-input">
+                <label for="supabase-key">Supabase Anon Key</label>
+                <input type="text" id="supabase-key" placeholder="your-anon-key">
+            </div>
+            <button class="save-config" onclick="initSupabase()">
+                <i class="fas fa-save"></i> Simpan Konfigurasi
+            </button>
+        </div>
         
         <div class="stats">
             <div class="stat-card">
@@ -683,9 +733,10 @@
     </div>
 
     <script>
-        // Data disimpan di localStorage browser
-        let items = JSON.parse(localStorage.getItem('inventoryItems')) || [];
-        let transactions = JSON.parse(localStorage.getItem('inventoryTransactions')) || [];
+        // Inisialisasi Supabase
+        let supabase = null;
+        let items = [];
+        let transactions = [];
         let uploadData = []; // Untuk menyimpan data yang diupload
         
         // Elemen UI
@@ -695,6 +746,99 @@
         const notification = document.getElementById('notification');
         const barcodeInput = document.getElementById('barcode');
         const nameInput = document.getElementById('name');
+        
+        // Fungsi untuk inisialisasi Supabase
+        function initSupabase() {
+            const supabaseUrl = document.getElementById('supabase-url').value;
+            const supabaseKey = document.getElementById('supabase-key').value;
+            
+            if (!supabaseUrl || !supabaseKey) {
+                showNotification('Harap isi URL dan Key Supabase', false);
+                return;
+            }
+            
+            // Simpan konfigurasi ke localStorage
+            localStorage.setItem('supabase_url', supabaseUrl);
+            localStorage.setItem('supabase_key', supabaseKey);
+            
+            // Inisialisasi Supabase client
+            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            
+            showNotification('Konfigurasi Supabase berhasil disimpan');
+            
+            // Muat data dari Supabase
+            loadDataFromSupabase();
+        }
+        
+        // Fungsi untuk memuat data dari Supabase
+        async function loadDataFromSupabase() {
+            if (!supabase) {
+                showNotification('Supabase belum dikonfigurasi', false);
+                return;
+            }
+            
+            try {
+                // Muat data items
+                const { data: itemsData, error: itemsError } = await supabase
+                    .from('items')
+                    .select('*');
+                
+                if (itemsError) throw itemsError;
+                items = itemsData || [];
+                
+                // Muat data transactions
+                const { data: transactionsData, error: transactionsError } = await supabase
+                    .from('transactions')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (transactionsError) throw transactionsError;
+                transactions = transactionsData || [];
+                
+                // Perbarui UI
+                updateStats();
+                updateHistoryTable();
+                updateStockTable();
+                
+                showNotification('Data berhasil dimuat dari Supabase');
+            } catch (error) {
+                console.error('Error loading data from Supabase:', error);
+                showNotification('Gagal memuat data dari Supabase: ' + error.message, false);
+            }
+        }
+        
+        // Fungsi untuk menyimpan data ke Supabase
+        async function saveDataToSupabase() {
+            if (!supabase) {
+                showNotification('Supabase belum dikonfigurasi', false);
+                return;
+            }
+            
+            try {
+                // Simpan items ke Supabase
+                for (const item of items) {
+                    const { error } = await supabase
+                        .from('items')
+                        .upsert(item, { onConflict: 'barcode' });
+                    
+                    if (error) throw error;
+                }
+                
+                // Simpan transactions ke Supabase
+                for (const transaction of transactions) {
+                    const { error } = await supabase
+                        .from('transactions')
+                        .insert(transaction);
+                    
+                    if (error) throw error;
+                }
+                
+                showNotification('Data berhasil disimpan ke Supabase');
+            } catch (error) {
+                console.error('Error saving data to Supabase:', error);
+                showNotification('Gagal menyimpan data ke Supabase: ' + error.message, false);
+            }
+        }
         
         // Fungsi untuk membuka tab
         function openTab(tabId) {
@@ -733,13 +877,6 @@
             }, 3000);
         }
         
-        // Fungsi untuk menyimpan data
-        function saveData() {
-            localStorage.setItem('inventoryItems', JSON.stringify(items));
-            localStorage.setItem('inventoryTransactions', JSON.stringify(transactions));
-            updateStats();
-        }
-        
         // Fungsi untuk memperbarui statistik
         function updateStats() {
             const today = new Date().toLocaleDateString();
@@ -773,10 +910,7 @@
                 return;
             }
             
-            // Urutkan transaksi berdasarkan tanggal (terbaru pertama)
-            const sortedTransactions = [...transactions].reverse();
-            
-            sortedTransactions.forEach(transaction => {
+            transactions.forEach(transaction => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${transaction.date} ${transaction.time}</td>
@@ -872,13 +1006,33 @@
         }
         
         // Fungsi untuk menghapus item
-        function deleteItem(barcode) {
-            if (confirm('Apakah Anda yakin ingin menghapus barang ini?')) {
+        async function deleteItem(barcode) {
+            if (!confirm('Apakah Anda yakin ingin menghapus barang ini?')) return;
+            
+            if (!supabase) {
+                showNotification('Supabase belum dikonfigurasi', false);
+                return;
+            }
+            
+            try {
+                // Hapus dari Supabase
+                const { error } = await supabase
+                    .from('items')
+                    .delete()
+                    .eq('barcode', barcode);
+                
+                if (error) throw error;
+                
+                // Hapus dari array lokal
                 items = items.filter(item => item.barcode !== barcode);
                 transactions = transactions.filter(transaction => transaction.barcode !== barcode);
-                saveData();
+                
+                // Perbarui UI
                 updateStockTable();
                 showNotification('Barang berhasil dihapus');
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                showNotification('Gagal menghapus barang: ' + error.message, false);
             }
         }
         
@@ -994,96 +1148,140 @@
             });
         }
         
-        function processImport() {
+        async function processImport() {
             if (uploadData.length === 0) {
                 showNotification('Tidak ada data untuk diproses', false);
+                return;
+            }
+            
+            if (!supabase) {
+                showNotification('Supabase belum dikonfigurasi', false);
                 return;
             }
             
             let processed = 0;
             let skipped = 0;
             
-            // Proses setiap baris data
-            for (let i = 0; i < uploadData.length; i++) {
-                const row = uploadData[i];
-                
-                // Validasi data
-                if (!row.Barcode || !row.Nama_Barang || !row.Quantity || !row.Jenis || !row.Lokasi || !row.Karyawan) {
-                    skipped++;
-                    continue;
-                }
-                
-                const barcode = String(row.Barcode);
-                const name = String(row.Nama_Barang);
-                const quantity = parseInt(row.Quantity) || 0;
-                const type = row.Jenis.toLowerCase();
-                const location = String(row.Lokasi);
-                const employee = String(row.Karyawan);
-                
-                // Validasi jenis transaksi
-                if (type !== 'in' && type !== 'out') {
-                    skipped++;
-                    continue;
-                }
-                
-                // Waktu transaksi
-                const now = new Date();
-                const date = now.toLocaleDateString();
-                const time = now.toLocaleTimeString();
-                
-                // Simpan transaksi
-                transactions.push({
-                    barcode, name, quantity, type, location, employee, date, time
-                });
-                
-                // Update stok barang
-                const existingItemIndex = items.findIndex(item => item.barcode === barcode);
-                
-                if (existingItemIndex !== -1) {
-                    // Jika barang sudah ada, update stok
-                    if (type === 'in') {
-                        items[existingItemIndex].stock += quantity;
-                    } else {
-                        // Cek stok cukup
-                        if (items[existingItemIndex].stock < quantity) {
-                            showNotification(`Stok tidak cukup untuk ${name} (${barcode})`, false);
-                            skipped++;
-                            transactions.pop(); // Hapus transaksi yang sudah ditambahkan
-                            continue;
-                        }
-                        items[existingItemIndex].stock -= quantity;
-                    }
-                    items[existingItemIndex].location = location;
-                } else {
-                    // Jika barang baru, tambahkan ke items
-                    if (type === 'out') {
-                        showNotification(`Tidak dapat mengurangi stok barang yang tidak ada: ${name} (${barcode})`, false);
+            try {
+                // Proses setiap baris data
+                for (let i = 0; i < uploadData.length; i++) {
+                    const row = uploadData[i];
+                    
+                    // Validasi data
+                    if (!row.Barcode || !row.Nama_Barang || !row.Quantity || !row.Jenis || !row.Lokasi || !row.Karyawan) {
                         skipped++;
-                        transactions.pop(); // Hapus transaksi yang sudah ditambahkan
                         continue;
                     }
                     
-                    items.push({
-                        barcode,
-                        name,
-                        stock: quantity,
-                        location
-                    });
+                    const barcode = String(row.Barcode);
+                    const name = String(row.Nama_Barang);
+                    const quantity = parseInt(row.Quantity) || 0;
+                    const type = row.Jenis.toLowerCase();
+                    const location = String(row.Lokasi);
+                    const employee = String(row.Karyawan);
+                    
+                    // Validasi jenis transaksi
+                    if (type !== 'in' && type !== 'out') {
+                        skipped++;
+                        continue;
+                    }
+                    
+                    // Waktu transaksi
+                    const now = new Date();
+                    const date = now.toLocaleDateString();
+                    const time = now.toLocaleTimeString();
+                    
+                    // Simpan transaksi ke Supabase
+                    const { error: transactionError } = await supabase
+                        .from('transactions')
+                        .insert({
+                            barcode, name, quantity, type, location, employee, date, time
+                        });
+                    
+                    if (transactionError) {
+                        console.error('Error saving transaction:', transactionError);
+                        skipped++;
+                        continue;
+                    }
+                    
+                    // Update stok barang di Supabase
+                    const { data: existingItem, error: selectError } = await supabase
+                        .from('items')
+                        .select('*')
+                        .eq('barcode', barcode)
+                        .single();
+                    
+                    if (selectError && selectError.code !== 'PGRST116') { // PGRST116 adalah error ketika tidak ada data ditemukan
+                        console.error('Error checking existing item:', selectError);
+                        skipped++;
+                        continue;
+                    }
+                    
+                    if (existingItem) {
+                        // Jika barang sudah ada, update stok
+                        let newStock = existingItem.stock;
+                        
+                        if (type === 'in') {
+                            newStock += quantity;
+                        } else {
+                            // Cek stok cukup
+                            if (existingItem.stock < quantity) {
+                                showNotification(`Stok tidak cukup untuk ${name} (${barcode})`, false);
+                                skipped++;
+                                continue;
+                            }
+                            newStock -= quantity;
+                        }
+                        
+                        const { error: updateError } = await supabase
+                            .from('items')
+                            .update({ stock: newStock, location: location })
+                            .eq('barcode', barcode);
+                        
+                        if (updateError) {
+                            console.error('Error updating item:', updateError);
+                            skipped++;
+                            continue;
+                        }
+                    } else {
+                        // Jika barang baru, tambahkan ke items
+                        if (type === 'out') {
+                            showNotification(`Tidak dapat mengurangi stok barang yang tidak ada: ${name} (${barcode})`, false);
+                            skipped++;
+                            continue;
+                        }
+                        
+                        const { error: insertError } = await supabase
+                            .from('items')
+                            .insert({
+                                barcode,
+                                name,
+                                stock: quantity,
+                                location
+                            });
+                        
+                        if (insertError) {
+                            console.error('Error inserting item:', insertError);
+                            skipped++;
+                            continue;
+                        }
+                    }
+                    
+                    processed++;
                 }
                 
-                processed++;
+                // Muat ulang data dari Supabase
+                await loadDataFromSupabase();
+                
+                // Tampilkan notifikasi
+                showNotification(`Berhasil memproses ${processed} data, ${skipped} data dilewati`);
+                
+                // Tutup modal
+                closeImportModal();
+            } catch (error) {
+                console.error('Error processing import:', error);
+                showNotification('Gagal memproses data: ' + error.message, false);
             }
-            
-            // Simpan data
-            saveData();
-            updateHistoryTable();
-            updateStockTable();
-            
-            // Tampilkan notifikasi
-            showNotification(`Berhasil memproses ${processed} data, ${skipped} data dilewati`);
-            
-            // Tutup modal
-            closeImportModal();
         }
         
         // Fungsi untuk export data ke CSV
@@ -1141,8 +1339,13 @@
         }
         
         // Handle form submission
-        itemForm.addEventListener('submit', function(e) {
+        itemForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            if (!supabase) {
+                showNotification('Supabase belum dikonfigurasi', false);
+                return;
+            }
             
             // Ambil nilai dari form
             const barcode = document.getElementById('barcode').value;
@@ -1163,75 +1366,97 @@
             const date = now.toLocaleDateString();
             const time = now.toLocaleTimeString();
             
-            // Simpan transaksi
-            transactions.push({
-                barcode, name, quantity, type, location, employee, date, time
-            });
-            
-            // Update stok barang
-            const existingItemIndex = items.findIndex(item => item.barcode === barcode);
-            
-            if (existingItemIndex !== -1) {
-                // Jika barang sudah ada, update stok
-                if (type === 'in') {
-                    items[existingItemIndex].stock += quantity;
-                } else {
-                    // Cek stok cukup
-                    if (items[existingItemIndex].stock < quantity) {
-                        showNotification('Stok tidak cukup untuk transaksi keluar', false);
-                        transactions.pop(); // Hapus transaksi yang sudah ditambahkan
-                        return;
-                    }
-                    items[existingItemIndex].stock -= quantity;
-                }
-                items[existingItemIndex].location = location;
-            } else {
-                // Jika barang baru, tambahkan ke items
-                if (type === 'out') {
-                    showNotification('Tidak dapat mengurangi stok barang yang tidak ada', false);
-                    transactions.pop(); // Hapus transaksi yang sudah ditambahkan
-                    return;
+            try {
+                // Simpan transaksi ke Supabase
+                const { error: transactionError } = await supabase
+                    .from('transactions')
+                    .insert({
+                        barcode, name, quantity, type, location, employee, date, time
+                    });
+                
+                if (transactionError) throw transactionError;
+                
+                // Update stok barang di Supabase
+                const { data: existingItem, error: selectError } = await supabase
+                    .from('items')
+                    .select('*')
+                    .eq('barcode', barcode)
+                    .single();
+                
+                if (selectError && selectError.code !== 'PGRST116') { // PGRST116 adalah error ketika tidak ada data ditemukan
+                    throw selectError;
                 }
                 
-                items.push({
-                    barcode,
-                    name,
-                    stock: quantity,
-                    location
-                });
+                if (existingItem) {
+                    // Jika barang sudah ada, update stok
+                    let newStock = existingItem.stock;
+                    
+                    if (type === 'in') {
+                        newStock += quantity;
+                    } else {
+                        // Cek stok cukup
+                        if (existingItem.stock < quantity) {
+                            showNotification('Stok tidak cukup untuk transaksi keluar', false);
+                            return;
+                        }
+                        newStock -= quantity;
+                    }
+                    
+                    const { error: updateError } = await supabase
+                        .from('items')
+                        .update({ stock: newStock, location: location })
+                        .eq('barcode', barcode);
+                    
+                    if (updateError) throw updateError;
+                } else {
+                    // Jika barang baru, tambahkan ke items
+                    if (type === 'out') {
+                        showNotification('Tidak dapat mengurangi stok barang yang tidak ada', false);
+                        return;
+                    }
+                    
+                    const { error: insertError } = await supabase
+                        .from('items')
+                        .insert({
+                            barcode,
+                            name,
+                            stock: quantity,
+                            location
+                        });
+                    
+                    if (insertError) throw insertError;
+                }
+                
+                // Muat ulang data dari Supabase
+                await loadDataFromSupabase();
+                
+                // Reset form
+                itemForm.reset();
+                
+                // Tampilkan notifikasi
+                showNotification('Data berhasil disimpan!');
+            } catch (error) {
+                console.error('Error saving data:', error);
+                showNotification('Gagal menyimpan data: ' + error.message, false);
             }
-            
-            // Simpan data dan perbarui UI
-            saveData();
-            updateHistoryTable();
-            updateStockTable();
-            
-            // Reset form
-            itemForm.reset();
-            
-            // Tampilkan notifikasi
-            showNotification('Data berhasil disimpan!');
         });
         
         // Inisialisasi data saat halaman dimuat
         document.addEventListener('DOMContentLoaded', function() {
-            // Tambahkan beberapa data contoh
-            if (items.length === 0) {
-                items = [
-                    { barcode: "123456789", name: "Laptop ASUS ROG", stock: 5, location: "Rak A1" },
-                    { barcode: "987654321", name: "Mouse Wireless", stock: 20, location: "Rak B2" },
-                    { barcode: "456123789", name: "Keyboard Mechanical", stock: 10, location: "Rak C3" },
-                    { barcode: "789456123", name: "Monitor 24 inch", stock: 8, location: "Rak D4" }
-                ];
-                saveData();
+            // Coba muat konfigurasi Supabase dari localStorage
+            const savedUrl = localStorage.getItem('supabase_url');
+            const savedKey = localStorage.getItem('supabase_key');
+            
+            if (savedUrl && savedKey) {
+                document.getElementById('supabase-url').value = savedUrl;
+                document.getElementById('supabase-key').value = savedKey;
+                initSupabase();
+            } else {
+                showNotification('Harap konfigurasi Supabase terlebih dahulu', false);
             }
             
-            updateStats();
-            updateHistoryTable();
-            updateStockTable();
             setupAutocomplete();
         });
     </script>
 </body>
-
 </html>
