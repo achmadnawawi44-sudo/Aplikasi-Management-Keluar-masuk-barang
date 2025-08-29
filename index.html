@@ -4,9 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Keluar Masuk Barang</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+  // Ganti dengan data project kamu
+  const SUPABASE_URL = "https://plrfinzrxysakgrsjcvg.supabase.co
+";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBscmZpbnpyeHlzYWtncnNqY3ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0NzcwNzMsImV4cCI6MjA3MjA1MzA3M30.Szlg0Y-y_rGa1QJYGpUoi3h-7FjGH1GjVnAHMw3nQ90";
+
+  // Inisialisasi Supabase
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Contoh: Insert data ke tabel transactions
+  async function addTransaction() {
+    const { data, error } = await supabase
+      .from("transactions")
+      .insert([
+        {
+          barcode: "123456789",
+          quantity: 5,
+          type: "in",
+          location: "Gudang A",
+          employee: "Kevin",
+          transaction_date: new Date().toISOString().slice(0, 10),
+          transaction_time: new Date().toISOString().slice(11, 19)
+        }
+      ]);
+
+    if (error) {
+      console.error(error);
+      alert("Gagal insert data!");
+    } else {
+      console.log(data);
+      alert("Berhasil tambah transaksi!");
+    }
+  }
+
+  // Contoh: Ambil data
+  async function getTransactions() {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (error) {
+      console.error(error);
+    } else {
+      console.log(data);
+      // Tampilkan ke tabel HTML kalau mau
+      document.getElementById("result").innerText = JSON.stringify(data, null, 2);
+    }
+  }
+</script>
+
+
     <style>
         * {
             box-sizing: border-box;
@@ -1460,3 +1510,4 @@
     </script>
 </body>
 </html>
+
