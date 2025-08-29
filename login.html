@@ -145,6 +145,20 @@
         .setup-link a:hover {
             text-decoration: underline;
         }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -168,7 +182,10 @@
                 <i class="fas fa-eye password-toggle" id="passwordToggle"></i>
             </div>
             
-            <button type="submit" class="btn-login">Masuk</button>
+            <button type="submit" class="btn-login" id="loginButton">
+                <span id="loginText">Masuk</span>
+                <span id="loginSpinner" class="loading" style="display: none;"></span>
+            </button>
         </form>
         
         <div class="setup-link">
@@ -248,8 +265,19 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
+            // Tampilkan loading state
+            document.getElementById('loginText').style.display = 'none';
+            document.getElementById('loginSpinner').style.display = 'inline-block';
+            document.getElementById('loginButton').disabled = true;
+            
             const supabase = initSupabase();
-            if (!supabase) return;
+            if (!supabase) {
+                // Reset loading state
+                document.getElementById('loginText').style.display = 'inline-block';
+                document.getElementById('loginSpinner').style.display = 'none';
+                document.getElementById('loginButton').disabled = false;
+                return;
+            }
             
             try {
                 // Hash password sebelum mengirim
@@ -285,7 +313,12 @@
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                showAlert('Terjadi kesalahan saat login', 'error');
+                showAlert('Terjadi kesalahan saat login: ' + error.message, 'error');
+            } finally {
+                // Reset loading state
+                document.getElementById('loginText').style.display = 'inline-block';
+                document.getElementById('loginSpinner').style.display = 'none';
+                document.getElementById('loginButton').disabled = false;
             }
         });
         
