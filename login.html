@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistem Inventory</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+        }
+        
+        .login-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            transition: transform 0.3s ease;
+        }
+        
+        .login-container:hover {
+            transform: translateY(-5px);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        .login-header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .login-header p {
+            color: #7f8c8d;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .btn-login {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        
+        .btn-login:hover {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+            transform: translateY(-2px);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 38px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+        
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert-error {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        
+        .alert-success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        
+        .setup-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #7f8c8d;
+        }
+        
+        .setup-link a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .setup-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1><i class="fas fa-warehouse"></i> Sistem Inventory</h1>
+            <p>Masuk ke akun Anda</p>
+        </div>
+        
+        <div id="alertBox" class="alert"></div>
+        
+        <form id="login-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="Masukkan username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Masukkan password" required>
+                <i class="fas fa-eye password-toggle" id="passwordToggle"></i>
+            </div>
+            
+            <button type="submit" class="btn-login">Masuk</button>
+        </form>
+        
+        <div class="setup-link">
+            <p>Belum mengatur Supabase? <a href="#" id="setupLink">Klik di sini</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Fungsi untuk menampilkan alert
+        function showAlert(message, type) {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.textContent = message;
+            alertBox.className = type === 'error' ? 'alert alert-error' : 'alert alert-success';
+            alertBox.style.display = 'block';
+            
+            // Sembunyikan alert setelah 5 detik
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Toggle visibility password
+        document.getElementById('passwordToggle').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                this.classList.remove('fa-eye');
+                this.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                this.classList.remove('fa-eye-slash');
+                this.classList.add('fa-eye');
+            }
+        });
+        
+        // Fungsi untuk hash password sederhana (SHA-256)
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hash))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+        
+        // Fungsi untuk inisialisasi Supabase
+        function initSupabase() {
+            const supabaseUrl = localStorage.getItem('supabase_url');
+            const supabaseKey = localStorage.getItem('supabase_key');
+            
+            if (!supabaseUrl || !supabaseKey) {
+                showAlert('Harap konfigurasi Supabase terlebih dahulu. Klik link setup di bawah form.', 'error');
+                return null;
+            }
+            
+            return window.supabase.createClient(supabaseUrl, supabaseKey);
+        }
+        
+        // Setup Supabase
+        document.getElementById('setupLink').addEventListener('click', function(e) {
+            e.preventDefault();
+            const supabaseUrl = prompt('Masukkan URL Supabase:');
+            if (supabaseUrl) {
+                localStorage.setItem('supabase_url', supabaseUrl);
+                const supabaseKey = prompt('Masukkan Anon Key Supabase:');
+                if (supabaseKey) {
+                    localStorage.setItem('supabase_key', supabaseKey);
+                    showAlert('Supabase berhasil dikonfigurasi! Silakan login.', 'success');
+                }
+            }
+        });
+        
+        // Handle form submission
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const supabase = initSupabase();
+            if (!supabase) return;
+            
+            try {
+                // Hash password sebelum mengirim
+                const hashedPassword = await hashPassword(password);
+                
+                // Cari pengguna di database
+                const { data: user, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('username', username)
+                    .eq('password', hashedPassword)
+                    .single();
+                
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        showAlert('Username atau password salah!', 'error');
+                    } else {
+                        throw error;
+                    }
+                } else if (user) {
+                    // Simpan info pengguna ke localStorage (tanpa password)
+                    const { password: _, ...userWithoutPassword } = user;
+                    localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+                    
+                    showAlert('Login berhasil! Mengalihkan...', 'success');
+                    
+                    // Redirect ke halaman utama setelah 1 detik
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                } else {
+                    showAlert('Username atau password salah!', 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showAlert('Terjadi kesalahan saat login', 'error');
+            }
+        });
+        
+        // Cek jika sudah login
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
+            window.location.href = 'index.html';
+        }
+        
+        // Cek jika Supabase sudah dikonfigurasi
+        window.addEventListener('DOMContentLoaded', function() {
+            const supabaseUrl = localStorage.getItem('supabase_url');
+            const supabaseKey = localStorage.getItem('supabase_key');
+            
+            if (supabaseUrl && supabaseKey) {
+                showAlert('Supabase sudah dikonfigurasi. Silakan login.', 'success');
+            }
+        });
+    </script>
+    
+    <!-- Load Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</body>
+</html>
