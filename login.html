@@ -18,8 +18,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+            padding: 20px;
         }
         
         .login-container {
@@ -140,24 +141,39 @@
         .setup-link a {
             color: #3498db;
             text-decoration: none;
+            cursor: pointer;
         }
         
         .setup-link a:hover {
             text-decoration: underline;
         }
         
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
         }
         
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab.active {
+            border-bottom: 3px solid #3498db;
+            color: #3498db;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
         }
     </style>
 </head>
@@ -165,31 +181,57 @@
     <div class="login-container">
         <div class="login-header">
             <h1><i class="fas fa-warehouse"></i> Sistem Inventory</h1>
-            <p>Masuk ke akun Anda</p>
+            <p>Masuk atau daftar ke akun Anda</p>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" id="login-tab">Login</div>
+            <div class="tab" id="signup-tab">Daftar</div>
         </div>
         
         <div id="alertBox" class="alert"></div>
         
-        <form id="login-form">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" placeholder="Masukkan username" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Masukkan password" required>
-                <i class="fas fa-eye password-toggle" id="passwordToggle"></i>
-            </div>
-            
-            <button type="submit" class="btn-login" id="loginButton">
-                <span id="loginText">Masuk</span>
-                <span id="loginSpinner" class="loading" style="display: none;"></span>
-            </button>
-        </form>
+        <div id="login-form-container" class="tab-content active">
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" placeholder="Masukkan username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Masukkan password" required>
+                    <i class="fas fa-eye password-toggle" id="login-password-toggle"></i>
+                </div>
+                
+                <button type="submit" class="btn-login">Masuk</button>
+            </form>
+        </div>
+        
+        <div id="signup-form-container" class="tab-content">
+            <form id="signup-form">
+                <div class="form-group">
+                    <label for="signup-username">Username</label>
+                    <input type="text" id="signup-username" placeholder="Buat username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" placeholder="Buat password" required>
+                    <i class="fas fa-eye password-toggle" id="signup-password-toggle"></i>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-fullname">Nama Lengkap</label>
+                    <input type="text" id="signup-fullname" placeholder="Masukkan nama lengkap" required>
+                </div>
+                
+                <button type="submit" class="btn-login">Daftar</button>
+            </form>
+        </div>
         
         <div class="setup-link">
-            <p>Belum mengatur Supabase? <a href="#" id="setupLink">Klik di sini</a></p>
+            <p>Belum mengatur Supabase? <a id="setupLink">Klik di sini</a></p>
         </div>
     </div>
 
@@ -208,18 +250,22 @@
         }
         
         // Toggle visibility password
-        document.getElementById('passwordToggle').addEventListener('click', function() {
-            const passwordInput = document.getElementById('password');
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                this.classList.remove('fa-eye');
-                this.classList.add('fa-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                this.classList.remove('fa-eye-slash');
-                this.classList.add('fa-eye');
-            }
-        });
+        function setupPasswordToggle(passwordId, toggleId) {
+            const toggle = document.getElementById(toggleId);
+            const passwordInput = document.getElementById(passwordId);
+            
+            toggle.addEventListener('click', function() {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    this.classList.remove('fa-eye');
+                    this.classList.add('fa-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    this.classList.remove('fa-eye-slash');
+                    this.classList.add('fa-eye');
+                }
+            });
+        }
         
         // Fungsi untuk hash password sederhana (SHA-256)
         async function hashPassword(password) {
@@ -247,37 +293,63 @@
         // Setup Supabase
         document.getElementById('setupLink').addEventListener('click', function(e) {
             e.preventDefault();
-            const supabaseUrl = prompt('Masukkan URL Supabase:');
+            const supabaseUrl = prompt('Masukkan Supabase URL:', 'https://plrfinzrxysakgrsjcvg.supabase.co');
             if (supabaseUrl) {
                 localStorage.setItem('supabase_url', supabaseUrl);
-                const supabaseKey = prompt('Masukkan Anon Key Supabase:');
+                const supabaseKey = prompt('Masukkan Supabase Anon Key:', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBscmZpbnpyeHlzYWtncnNqY3ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0NzcwNzMsImV4cCI6MjA3MjA1MzA3M30.Szlg0Y-y_rGa1QJYGpUoi3h-7FjGH1GjVnAHMw3nQ90');
                 if (supabaseKey) {
                     localStorage.setItem('supabase_key', supabaseKey);
-                    showAlert('Supabase berhasil dikonfigurasi! Silakan login.', 'success');
+                    showAlert('Supabase berhasil dikonfigurasi! Silakan login atau daftar.', 'success');
+                    
+                    // Buat tabel users otomatis
+                    createUsersTable();
                 }
             }
         });
         
-        // Handle form submission
+        // Fungsi untuk membuat tabel users jika belum ada
+        async function createUsersTable() {
+            const supabase = initSupabase();
+            if (!supabase) return;
+            
+            try {
+                // Cek apakah tabel users sudah ada
+                const { error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .limit(1);
+                
+                // Jika error, tabel mungkin belum ada
+                if (error && error.code === '42P01') {
+                    showAlert('Tabel users belum ada. Silakan buat tabel di Supabase.', 'error');
+                    
+                    // SQL untuk membuat tabel users
+                    const sqlQuery = `
+                        CREATE TABLE users (
+                            id SERIAL PRIMARY KEY,
+                            username VARCHAR(50) UNIQUE NOT NULL,
+                            password VARCHAR(255) NOT NULL,
+                            fullname VARCHAR(100) NOT NULL,
+                            created_at TIMESTAMP DEFAULT NOW()
+                        );
+                    `;
+                    
+                    alert('Silakan buat tabel users di SQL Editor Supabase dengan query berikut:\n' + sqlQuery);
+                }
+            } catch (error) {
+                console.error('Error checking users table:', error);
+            }
+        }
+        
+        // Handle login form submission
         document.getElementById('login-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            // Tampilkan loading state
-            document.getElementById('loginText').style.display = 'none';
-            document.getElementById('loginSpinner').style.display = 'inline-block';
-            document.getElementById('loginButton').disabled = true;
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
             
             const supabase = initSupabase();
-            if (!supabase) {
-                // Reset loading state
-                document.getElementById('loginText').style.display = 'inline-block';
-                document.getElementById('loginSpinner').style.display = 'none';
-                document.getElementById('loginButton').disabled = false;
-                return;
-            }
+            if (!supabase) return;
             
             try {
                 // Hash password sebelum mengirim
@@ -314,13 +386,78 @@
             } catch (error) {
                 console.error('Login error:', error);
                 showAlert('Terjadi kesalahan saat login: ' + error.message, 'error');
-            } finally {
-                // Reset loading state
-                document.getElementById('loginText').style.display = 'inline-block';
-                document.getElementById('loginSpinner').style.display = 'none';
-                document.getElementById('loginButton').disabled = false;
             }
         });
+        
+        // Handle signup form submission
+        document.getElementById('signup-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('signup-username').value;
+            const password = document.getElementById('signup-password').value;
+            const fullname = document.getElementById('signup-fullname').value;
+            
+            const supabase = initSupabase();
+            if (!supabase) return;
+            
+            try {
+                // Hash password sebelum menyimpan
+                const hashedPassword = await hashPassword(password);
+                
+                // Simpan pengguna baru ke database
+                const { data, error } = await supabase
+                    .from('users')
+                    .insert([
+                        { 
+                            username: username, 
+                            password: hashedPassword, 
+                            fullname: fullname 
+                        }
+                    ])
+                    .select();
+                
+                if (error) {
+                    if (error.code === '23505') {
+                        showAlert('Username sudah digunakan!', 'error');
+                    } else {
+                        throw error;
+                    }
+                } else if (data && data.length > 0) {
+                    // Simpan info pengguna ke localStorage (tanpa password)
+                    const { password: _, ...userWithoutPassword } = data[0];
+                    localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+                    
+                    showAlert('Pendaftaran berhasil! Mengalihkan...', 'success');
+                    
+                    // Redirect ke halaman utama setelah 1 detik
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error('Signup error:', error);
+                showAlert('Terjadi kesalahan saat pendaftaran: ' + error.message, 'error');
+            }
+        });
+        
+        // Tab functionality
+        document.getElementById('login-tab').addEventListener('click', function() {
+            document.getElementById('login-tab').classList.add('active');
+            document.getElementById('signup-tab').classList.remove('active');
+            document.getElementById('login-form-container').classList.add('active');
+            document.getElementById('signup-form-container').classList.remove('active');
+        });
+        
+        document.getElementById('signup-tab').addEventListener('click', function() {
+            document.getElementById('signup-tab').classList.add('active');
+            document.getElementById('login-tab').classList.remove('active');
+            document.getElementById('signup-form-container').classList.add('active');
+            document.getElementById('login-form-container').classList.remove('active');
+        });
+        
+        // Setup password toggles
+        setupPasswordToggle('login-password', 'login-password-toggle');
+        setupPasswordToggle('signup-password', 'signup-password-toggle');
         
         // Cek jika sudah login
         const savedUser = localStorage.getItem('currentUser');
@@ -334,7 +471,10 @@
             const supabaseKey = localStorage.getItem('supabase_key');
             
             if (supabaseUrl && supabaseKey) {
-                showAlert('Supabase sudah dikonfigurasi. Silakan login.', 'success');
+                showAlert('Supabase sudah dikonfigurasi. Silakan login atau daftar.', 'success');
+                
+                // Cek tabel users
+                createUsersTable();
             }
         });
     </script>
