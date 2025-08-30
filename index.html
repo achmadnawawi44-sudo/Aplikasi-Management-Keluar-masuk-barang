@@ -1367,14 +1367,56 @@
             const time = now.toLocaleTimeString();
             
             try {
-                // Simpan transaksi ke Supabase
-                const { error: transactionError } = await supabase
-                    .from('transactions')
-                    .insert({
-                        barcode, name, quantity, type, location, employee, date, time
-                    });
-                
-                if (transactionError) throw transactionError;
+                // Modifikasi langsung di fungsi saveTransaction()
+async function saveTransaction() {
+    // Input type="date" sudah mengembalikan format YYYY-MM-DD
+    const date = dateInput.value; // Langsung pakai value ini
+    
+    const description = descriptionInput.value;
+    const amount = parseFloat(amountInput.value);
+    const type = typeSelect.value;
+    
+    // Validasi
+    if (!date || !description || isNaN(amount) || !type) {
+        showNotification('Harap isi semua field dengan benar!', false);
+        return;
+    }
+    
+    try {
+        // Debug: Pastikan format sudah benar
+        console.log('Tanggal yang dikirim:', date);
+        
+        // Langsung kirim ke Supabase
+        const { data, error } = await supabase
+            .from('transactions')
+            .insert([
+                { 
+                    date: date, // Format YYYY-MM-DD
+                    description: description, 
+                    amount: amount, 
+                    type: type 
+                }
+            ]);
+        
+        if (error) {
+            console.error('Error:', error);
+            showNotification(`Error: ${error.message}`, false);
+            return;
+        }
+        
+        // Reset form
+        descriptionInput.value = '';
+        amountInput.value = '';
+        typeSelect.value = '';
+        
+        showNotification('Transaksi berhasil disimpan!');
+        loadTransactions();
+        
+    } catch (err) {
+        console.error('Exception:', err);
+        showNotification('Terjadi kesalahan', false);
+    }
+}
                 
                 // Update stok barang di Supabase
                 const { data: existingItem, error: selectError } = await supabase
